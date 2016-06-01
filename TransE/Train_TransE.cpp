@@ -55,7 +55,7 @@ int relation_num,entity_num;
 map<string,int> relation2id,entity2id;
 map<int,string> id2entity,id2relation;
 
-
+//example: <03,<03,05>>  03 is the left entity of <03,05>
 map<int,map<int,int> > left_entity,right_entity;
 map<int,double> left_num,right_num;
 
@@ -70,15 +70,16 @@ public:
         fb_l.push_back(y);
         ok[make_pair(x,z)][y]=1;
     }
+
     void run(int n_in,double rate_in,double margin_in,int method_in)
     {
-        n = n_in;
-        rate = rate_in;
-        margin = margin_in;
-        method = method_in;
-        relation_vec.resize(relation_num);
+        n = n_in;//the latent  dimension of embedding vector
+        rate = rate_in;//the learning rate
+        margin = margin_in;//the margin
+        method = method_in;//
+        relation_vec.resize(relation_num);// resize the relation_vec to contain #relation relations.
 		for (int i=0; i<relation_vec.size(); i++)
-			relation_vec[i].resize(n);
+			relation_vec[i].resize(n);//resize the latent vector to n 
         entity_vec.resize(entity_num);
 		for (int i=0; i<entity_vec.size(); i++)
 			entity_vec[i].resize(n);
@@ -88,6 +89,8 @@ public:
         entity_tmp.resize(entity_num);
 		for (int i=0; i<entity_tmp.size(); i++)
 			entity_tmp[i].resize(n);
+
+		//uniform(-a,a) is the uniform distribution in the interval (-a,a) and n is the size of vector.
         for (int i=0; i<relation_num; i++)
         {
             for (int ii=0; ii<n; ii++)
@@ -100,7 +103,7 @@ public:
             norm(entity_vec[i]);
         }
 
-
+		//
         bfgs();
     }
 
@@ -133,9 +136,9 @@ private:
     void bfgs()
     {
         res=0;
-        int nbatches=100;
-        int nepoch = 1000;
-        int batchsize = fb_h.size()/nbatches;
+        int nbatches=100;// divide the head entities into 100 groups or batches
+        int nepoch = 1000;// training 1000 times.
+        int batchsize = fb_h.size()/nbatches;  //  the parameter b in the paper.
             for (int epoch=0; epoch<nepoch; epoch++)
             {
 
@@ -148,6 +151,8 @@ private:
              		{
 						int i=rand_max(fb_h.size());
 						int j=rand_max(entity_num);
+						//w.r.t a relation fb_l, the average number of tail entities per head entity: tph=right_num[fb_r[i]
+						//the average number of head tntities per tail entity:hpt=left_num[fb_r[i]]
 						double pr = 1000*right_num[fb_r[i]]/(right_num[fb_r[i]]+left_num[fb_r[i]]);
 						if (method ==0)
                             pr = 500;
@@ -190,7 +195,10 @@ private:
                 fclose(f3);
             }
     }
+
     double res1;
+	
+	//the dissimilarity function or the engergy function.
     double calc_sum(int e1,int e2,int rel)
     {
         double sum=0;
@@ -202,6 +210,8 @@ private:
             	sum+=sqr(entity_vec[e2][ii]-entity_vec[e1][ii]-relation_vec[rel][ii]);
         return sum;
     }
+
+	//update the embeddings w.r.t gradient.
     void gradient(int e1_a,int e2_a,int rel_a,int e1_b,int e2_b,int rel_b)
     {
         for (int ii=0; ii<n; ii++)
@@ -227,10 +237,13 @@ private:
             entity_tmp[e2_b][ii]+=rate*x;
         }
     }
+
     void train_kb(int e1_a,int e2_a,int rel_a,int e1_b,int e2_b,int rel_b)
     {
         double sum1 = calc_sum(e1_a,e2_a,rel_a);
         double sum2 = calc_sum(e1_b,e2_b,rel_b);
+		//if the score of positive triple is too high, the loss function value should be considered.
+		//and the embeddings should be updated w.r.t the gradient.
         if (sum1+margin>sum2)
         {
         	res+=margin+sum1-sum2;
@@ -240,6 +253,7 @@ private:
 };
 
 Train train;
+
 void prepare()
 {
     FILE* f1 = fopen("../data/entity2id.txt","r");
@@ -309,6 +323,7 @@ void prepare()
     fclose(f_kb);
 }
 
+//lookup the position of some string arguments in command line. 
 int ArgPos(char *str, int argc, char **argv) {
   int a;
   for (a = 1; a < argc; a++) if (!strcmp(str, argv[a])) {
@@ -343,5 +358,3 @@ int main(int argc,char**argv)
     prepare();
     train.run(n,rate,margin,method);
 }
-
-
